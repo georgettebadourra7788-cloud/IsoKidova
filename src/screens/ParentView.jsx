@@ -7,6 +7,7 @@ import LoadingState from "../components/LoadingState.jsx";
 import Logo from "../components/Logo.jsx";
 import { isSupabaseConfigured } from "../lib/supabaseClient.js";
 import { getSharedReport } from "../lib/api/shareLinks.js";
+import { fromDbRow } from "../lib/api/learningPlanDay.js";
 import { AI_DISCLAIMER } from "../lib/ai/index.js";
 
 export default function ParentView() {
@@ -31,7 +32,11 @@ export default function ParentView() {
       } else if (!data) {
         setNotFound(true);
       } else {
-        setReport(data);
+        // get_shared_report() returns plan_days as raw DB-shaped rows
+        // (same column names as learning_plan_days); convert once here so
+        // this screen renders the same canonical LearningPlanDay shape as
+        // the tutor's report view.
+        setReport({ ...data, plan_days: (data.plan_days || []).map(fromDbRow) });
       }
       setLoading(false);
     })();
@@ -107,14 +112,14 @@ export default function ParentView() {
               <h2 className="mb-3 font-display text-lg font-semibold text-on-surface">14-Day Learning Plan</h2>
               <div className="space-y-3">
                 {(report.plan_days || []).map((day) => (
-                  <Card key={day.day_number} className="space-y-1.5 p-5">
+                  <Card key={day.dayNumber} className="space-y-1.5 p-5">
                     <div className="flex items-center justify-between">
-                      <p className="font-display text-base font-semibold text-on-surface">Day {day.day_number}: {day.focus_skill}</p>
+                      <p className="font-display text-base font-semibold text-on-surface">Day {day.dayNumber}: {day.focusSkill}</p>
                       {day.difficulty && <Badge tone="accent">{day.difficulty}</Badge>}
                     </div>
                     <p className="text-sm text-on-surface-variant">{day.activity}</p>
                     <p className="text-xs text-on-surface-variant">
-                      {[day.estimated_time, day.success_criterion && `Goal: ${day.success_criterion}`].filter(Boolean).join(" · ")}
+                      {[day.estimatedTime, day.successCriterion && `Goal: ${day.successCriterion}`].filter(Boolean).join(" · ")}
                     </p>
                   </Card>
                 ))}

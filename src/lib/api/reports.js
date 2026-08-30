@@ -1,4 +1,5 @@
 import { supabase } from "../supabaseClient.js";
+import { toDbRow, fromDbRow } from "./learningPlanDay.js";
 
 const REPORT_COLUMNS =
   "id, child_id, assessment_id, tutor_id, status, child_name, child_age, child_grade, child_subject, strengths, learning_gaps, priority_goal, recommended_practice, ai_provider, created_at, updated_at";
@@ -33,15 +34,7 @@ export async function createReport(tutorId, { child, assessmentId, aiProvider, r
 
   if (reportError) return { data: null, error: reportError };
 
-  const rows = planDays.map((day) => ({
-    report_id: reportRow.id,
-    day_number: day.dayNumber,
-    focus_skill: day.focusSkill,
-    activity: day.activity,
-    estimated_time: day.estimatedTime,
-    difficulty: day.difficulty,
-    success_criterion: day.successCriterion,
-  }));
+  const rows = planDays.map((day) => toDbRow(reportRow.id, day));
 
   const { data: dayRows, error: daysError } = await supabase
     .from("learning_plan_days")
@@ -55,12 +48,19 @@ export async function createReport(tutorId, { child, assessmentId, aiProvider, r
 }
 
 export async function getReport(reportId) {
-  return supabase
+  const { data, error } = await supabase
     .from("learning_reports")
     .select(`${REPORT_COLUMNS}, learning_plan_days(${PLAN_DAY_COLUMNS})`)
     .eq("id", reportId)
     .order("day_number", { foreignTable: "learning_plan_days" })
     .maybeSingle();
+
+  if (error || !data) return { data, error };
+
+  // learning_plan_days comes back as raw DB rows (snake_case); convert once
+  // here so every caller works with the same canonical LearningPlanDay shape
+  // instead of each screen re-inventing its own snake_case -> camelCase map.
+  return { data: { ...data, learning_plan_days: (data.learning_plan_days || []).map(fromDbRow) }, error: null };
 }
 
 export async function listReportsForTutor(tutorId, { limit } = {}) {
@@ -98,18 +98,11 @@ export async function updateReportFields(reportId, patch) {
 }
 
 export async function upsertPlanDays(reportId, days) {
-  const rows = days.map((day) => ({
-    report_id: reportId,
-    day_number: day.dayNumber,
-    focus_skill: day.focusSkill,
-    activity: day.activity,
-    estimated_time: day.estimatedTime,
-    difficulty: day.difficulty,
-    success_criterion: day.successCriterion,
-  }));
-  return supabase
+  const rows = days.map((day) => toDbRow(reportId, day));
+  const { data, error } = await supabase
     .from("learning_plan_days")
     .upsert(rows, { onConflict: "report_id,day_number" })
     .select(PLAN_DAY_COLUMNS)
     .order("day_number");
+  return { data: data ? data.map(fromDbRow) : data, error };
 }

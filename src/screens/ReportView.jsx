@@ -18,20 +18,17 @@ import { generateLearningReport, AI_DISCLAIMER } from "../lib/ai/index.js";
 
 const DIFFICULTIES = ["Easy", "Medium", "Challenging", "Review"];
 
+// report.learning_plan_days is already canonical LearningPlanDay[] by the
+// time it reaches here - getReport() (see lib/api/reports.js) converts the
+// raw DB rows via learningPlanDay.js's fromDbRow() once, at the API
+// boundary, so no screen has to know the database's snake_case column names.
 function toEditState(report) {
   return {
     strengths: [...(report.strengths || [])],
     learningGaps: [...(report.learning_gaps || [])],
     priorityGoal: report.priority_goal || "",
     recommendedPractice: report.recommended_practice || "",
-    planDays: (report.learning_plan_days || []).map((day) => ({
-      dayNumber: day.day_number,
-      focusSkill: day.focus_skill || "",
-      activity: day.activity || "",
-      estimatedTime: day.estimated_time || "",
-      difficulty: day.difficulty || "Medium",
-      successCriterion: day.success_criterion || "",
-    })),
+    planDays: (report.learning_plan_days || []).map((day) => ({ ...day })),
   };
 }
 
