@@ -60,7 +60,10 @@ export default function ReportView() {
         setError("We couldn't find that report.");
       } else {
         setReport(data);
-        setEdit(toEditState(data));
+        const nextEdit = toEditState(data);
+        // TEMPORARY DEBUG LOGGING - remove once the pipeline is confirmed.
+        console.log("[DEBUG 5 UI DATA] day 1 object in edit state, about to render into the form:", nextEdit.planDays[0]);
+        setEdit(nextEdit);
         const { data: link } = await getActiveShareLink(reportId);
         if (link) setShareUrl(`${window.location.origin}/share/${link.token}`);
       }
