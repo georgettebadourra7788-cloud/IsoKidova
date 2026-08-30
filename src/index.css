@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@import "@fontsource/fraunces/500.css";
+@import "@fontsource/fraunces/600.css";
+@import "@fontsource/fraunces/700.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+@import "material-symbols/outlined.css";
+
+/* ---- IsoKidova design tokens: warm, trustworthy, modern educational SaaS ---- */
+@theme {
+  --color-surface: #faf8f3;
+  --color-surface-dim: #efeadf;
+  --color-surface-bright: #ffffff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f5f1e7;
+  --color-surface-container: #efe9db;
+  --color-surface-container-high: #e8e1d0;
+  --color-surface-container-highest: #e0d8c4;
+  --color-on-surface: #23231f;
+  --color-on-surface-variant: #56534a;
+  --color-outline: #8a8577;
+  --color-outline-variant: #ddd6c4;
+
+  --color-primary: #1f6f5c;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #d7ebe2;
+  --color-on-primary-container: #0f4438;
+
+  --color-secondary: #4a5568;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #e4e7ec;
+  --color-on-secondary-container: #313a48;
+
+  --color-accent: #e08a3c;
+  --color-on-accent: #2a1a05;
+  --color-accent-container: #fbe6cc;
+  --color-on-accent-container: #6b3f0e;
+
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  --color-background: #faf8f3;
+  --color-on-background: #23231f;
+
+  --font-display: "Fraunces", serif;
+  --font-body: "Inter", sans-serif;
+
+  --radius-2xl: 1.25rem;
+}
+
+body {
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
+  font-family: var(--font-body);
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.soft-shadow {
+  box-shadow: 0px 10px 30px rgba(35, 35, 31, 0.06);
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
