@@ -30,9 +30,6 @@ export async function generateLearningReport({ child, assessment }) {
   const provider = PROVIDERS[providerId];
   try {
     const result = await provider.generate({ child, assessment });
-    // TEMPORARY DEBUG LOGGING - remove once the pipeline is confirmed.
-    console.log("[DEBUG 1 AI OUTPUT] day 1 from provider.generate():", result.planDays?.[0]);
-    console.log("[DEBUG 2 NORMALIZED] day 1 returned by generateLearningReport() (no transform applied here):", result.planDays?.[0]);
     return { data: result, providerId, error: null };
   } catch (err) {
     return {

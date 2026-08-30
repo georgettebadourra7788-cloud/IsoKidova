@@ -35,8 +35,6 @@ export async function createReport(tutorId, { child, assessmentId, aiProvider, r
   if (reportError) return { data: null, error: reportError };
 
   const rows = planDays.map((day) => toDbRow(reportRow.id, day));
-  // TEMPORARY DEBUG LOGGING - remove once the pipeline is confirmed.
-  console.log("[DEBUG 3 DB INSERT] day 1 row about to be inserted into learning_plan_days:", rows[0]);
 
   const { data: dayRows, error: daysError } = await supabase
     .from("learning_plan_days")
@@ -44,11 +42,7 @@ export async function createReport(tutorId, { child, assessmentId, aiProvider, r
     .select(PLAN_DAY_COLUMNS)
     .order("day_number");
 
-  if (daysError) {
-    console.log("[DEBUG 3 DB INSERT] insert FAILED:", daysError);
-    return { data: null, error: daysError };
-  }
-  console.log("[DEBUG 3 DB INSERT] day 1 row Supabase actually stored/returned:", dayRows?.[0]);
+  if (daysError) return { data: null, error: daysError };
 
   return { data: { ...reportRow, learning_plan_days: dayRows }, error: null };
 }
@@ -61,19 +55,12 @@ export async function getReport(reportId) {
     .order("day_number", { foreignTable: "learning_plan_days" })
     .maybeSingle();
 
-  if (error || !data) {
-    console.log("[DEBUG 4 DB READ] getReport() query FAILED or returned nothing:", { error, data });
-    return { data, error };
-  }
-  // TEMPORARY DEBUG LOGGING - remove once the pipeline is confirmed.
-  console.log("[DEBUG 4 DB READ] day 1 RAW row from Supabase (before fromDbRow):", data.learning_plan_days?.[0]);
+  if (error || !data) return { data, error };
 
   // learning_plan_days comes back as raw DB rows (snake_case); convert once
   // here so every caller works with the same canonical LearningPlanDay shape
   // instead of each screen re-inventing its own snake_case -> camelCase map.
-  const converted = { ...data, learning_plan_days: (data.learning_plan_days || []).map(fromDbRow) };
-  console.log("[DEBUG 4 DB READ] day 1 AFTER fromDbRow (canonical shape):", converted.learning_plan_days[0]);
-  return { data: converted, error: null };
+  return { data: { ...data, learning_plan_days: (data.learning_plan_days || []).map(fromDbRow) }, error: null };
 }
 
 export async function listReportsForTutor(tutorId, { limit } = {}) {
