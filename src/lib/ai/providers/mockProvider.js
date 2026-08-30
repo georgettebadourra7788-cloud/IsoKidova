@@ -1,4 +1,4 @@
-import { splitPhrases, extractScore, lowerFirst } from "../textUtils.js";
+import { splitPhrases, shortLabel, extractScore, lowerFirst } from "../textUtils.js";
 
 // Mock AI provider for MVP 1: no API key, no network call, no cost. It
 // turns the tutor's own free-text assessment into a structured report using
@@ -63,7 +63,19 @@ export async function generate({ child, assessment }) {
           "Shows willingness to try new problems, even when unsure at first.",
         ];
 
-  const focusPool = weaknessPhrases.length > 0 ? weaknessPhrases : topicPhrases.length > 0 ? topicPhrases : ["core skills"];
+  // Weaknesses and assessed topics are both worth practicing, so combine
+  // them (deduping near-identical entries) rather than only falling back to
+  // topics when weaknesses is empty - this also keeps the 14-day plan from
+  // repeating a single focus skill when the tutor described just one.
+  const focusPool = [];
+  const seen = new Set();
+  for (const phrase of [...weaknessPhrases, ...topicPhrases]) {
+    const key = shortLabel(phrase).toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    focusPool.push(phrase);
+  }
+  if (focusPool.length === 0) focusPool.push("core skills");
 
   const learningGaps = focusPool.map((phrase, i) => {
     if (i === 0 && score) {
@@ -73,7 +85,7 @@ export async function generate({ child, assessment }) {
   });
 
   const priorityGoal = `Build confidence and accuracy with ${lowerFirst(
-    focusPool[0],
+    shortLabel(focusPool[0]),
   )} through short, consistent daily practice over the next 14 days.`;
 
   const recommendedPractice =
@@ -85,7 +97,10 @@ export async function generate({ child, assessment }) {
 
   const planDays = Array.from({ length: 14 }, (_, i) => {
     const dayNumber = i + 1;
-    const skill = focusPool[i % focusPool.length];
+    // The full phrase (e.g. "multiplication tables, especially 6-9") is
+    // right for a Learning Gaps bullet, but reads better trimmed down when
+    // it's embedded mid-sentence in a day's focus skill / activity text.
+    const skill = shortLabel(focusPool[i % focusPool.length]);
     const isReviewDay = dayNumber === 7 || dayNumber === 14;
     const activity = isReviewDay
       ? REVIEW_ACTIVITY(skill)
