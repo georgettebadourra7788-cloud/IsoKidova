@@ -87,16 +87,24 @@ export default function ParentView() {
 
             <Card className="space-y-3 p-6">
               <h2 className="font-display text-lg font-semibold text-on-surface">Skills to strengthen</h2>
-              <ul className="list-disc space-y-1.5 pl-5 text-sm text-on-surface-variant">
+              <p className="text-xs text-on-surface-variant">Listed in order of priority.</p>
+              <ol className="list-decimal space-y-1.5 pl-5 text-sm text-on-surface-variant">
                 {(report.learning_gaps || []).map((item, i) => (
                   <li key={i}>{item}</li>
                 ))}
-              </ul>
+              </ol>
             </Card>
+
+            {report.why_it_matters && (
+              <Card className="space-y-2 p-6">
+                <h2 className="font-display text-lg font-semibold text-on-surface">Why this matters</h2>
+                <p className="text-sm text-on-surface-variant">{report.why_it_matters}</p>
+              </Card>
+            )}
 
             {report.priority_goal && (
               <Card className="space-y-2 p-6">
-                <h2 className="font-display text-lg font-semibold text-on-surface">Priority goal for the next 14 days</h2>
+                <h2 className="font-display text-lg font-semibold text-on-surface">Goal for the next 14 days</h2>
                 <p className="text-sm text-on-surface-variant">{report.priority_goal}</p>
               </Card>
             )}
@@ -112,14 +120,28 @@ export default function ParentView() {
               <h2 className="mb-3 font-display text-lg font-semibold text-on-surface">14-Day Learning Plan</h2>
               <div className="space-y-3">
                 {(report.plan_days || []).map((day) => (
-                  <Card key={day.dayNumber} className="space-y-1.5 p-5">
-                    <div className="flex items-center justify-between">
-                      <p className="font-display text-base font-semibold text-on-surface">Day {day.dayNumber}: {day.focusSkill}</p>
+                  <Card key={day.dayNumber} className="space-y-2 p-5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-display text-base font-semibold text-on-surface">
+                        Day {day.dayNumber}{day.title ? `: ${day.title}` : ""}
+                      </p>
                       {day.difficulty && <Badge tone="accent">{day.difficulty}</Badge>}
                     </div>
-                    <p className="text-sm text-on-surface-variant">{day.activity}</p>
+                    {day.learningObjective && <p className="text-sm text-on-surface-variant">{day.learningObjective}</p>}
+                    {day.childPractice && (
+                      <p className="text-sm text-on-surface-variant">
+                        <span className="font-medium text-on-surface">Practice: </span>
+                        {day.childPractice}
+                      </p>
+                    )}
+                    {day.teachingTip && (
+                      <p className="text-sm text-on-surface-variant">
+                        <span className="font-medium text-on-surface">Tip: </span>
+                        {day.teachingTip}
+                      </p>
+                    )}
                     <p className="text-xs text-on-surface-variant">
-                      {[day.estimatedTime, day.successCriterion && `Goal: ${day.successCriterion}`].filter(Boolean).join(" · ")}
+                      {[day.estimatedTime, day.successCheck && `Success check: ${day.successCheck}`].filter(Boolean).join(" · ")}
                     </p>
                   </Card>
                 ))}

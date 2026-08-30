@@ -2,9 +2,10 @@ import { supabase } from "../supabaseClient.js";
 import { toDbRow, fromDbRow } from "./learningPlanDay.js";
 
 const REPORT_COLUMNS =
-  "id, child_id, assessment_id, tutor_id, status, child_name, child_age, child_grade, child_subject, strengths, learning_gaps, priority_goal, recommended_practice, ai_provider, created_at, updated_at";
+  "id, child_id, assessment_id, tutor_id, status, child_name, child_age, child_grade, child_subject, strengths, learning_gaps, priority_goal, why_it_matters, recommended_practice, ai_provider, created_at, updated_at";
 
-const PLAN_DAY_COLUMNS = "id, report_id, day_number, focus_skill, activity, estimated_time, difficulty, success_criterion";
+const PLAN_DAY_COLUMNS =
+  "id, report_id, day_number, title, focus_skill, learning_objective, activity, child_practice, teaching_tip, estimated_time, difficulty, success_criterion";
 
 // Creates a report and its 14 plan-day rows together. Not a real DB
 // transaction (supabase-js can't start one from the browser), but the plan
@@ -26,6 +27,7 @@ export async function createReport(tutorId, { child, assessmentId, aiProvider, r
       strengths: report.strengths,
       learning_gaps: report.learningGaps,
       priority_goal: report.priorityGoal,
+      why_it_matters: report.whyItMatters,
       recommended_practice: report.recommendedPractice,
       ai_provider: aiProvider,
     })
@@ -88,6 +90,7 @@ export async function updateReportFields(reportId, patch) {
       strengths: patch.strengths,
       learning_gaps: patch.learningGaps,
       priority_goal: patch.priorityGoal,
+      why_it_matters: patch.whyItMatters,
       recommended_practice: patch.recommendedPractice,
       status: patch.status,
       updated_at: new Date().toISOString(),

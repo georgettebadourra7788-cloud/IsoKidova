@@ -27,6 +27,7 @@ function toEditState(report) {
     strengths: [...(report.strengths || [])],
     learningGaps: [...(report.learning_gaps || [])],
     priorityGoal: report.priority_goal || "",
+    whyItMatters: report.why_it_matters || "",
     recommendedPractice: report.recommended_practice || "",
     planDays: (report.learning_plan_days || []).map((day) => ({ ...day })),
   };
@@ -162,6 +163,7 @@ export default function ReportView() {
         strengths: aiResult.strengths,
         learningGaps: aiResult.learningGaps,
         priorityGoal: aiResult.priorityGoal,
+        whyItMatters: aiResult.whyItMatters,
         recommendedPractice: aiResult.recommendedPractice,
         planDays: aiResult.planDays,
       });
@@ -209,42 +211,58 @@ export default function ReportView() {
         </div>
       )}
 
-      <Card className="space-y-4 p-6">
-        <h2 className="font-display text-lg font-semibold text-on-surface">Strengths</h2>
-        <EditableList
-          items={edit.strengths}
-          placeholder="e.g. Strong vocabulary"
-          onChange={(strengths) => setEdit((prev) => ({ ...prev, strengths }))}
-        />
-      </Card>
+      <div>
+        <h2 className="mb-3 font-display text-lg font-semibold text-on-surface">Learning Snapshot</h2>
+        <div className="space-y-4">
+          <Card className="space-y-4 p-6">
+            <h3 className="font-display text-base font-semibold text-on-surface">Strengths</h3>
+            <EditableList
+              items={edit.strengths}
+              placeholder="e.g. Strong vocabulary"
+              onChange={(strengths) => setEdit((prev) => ({ ...prev, strengths }))}
+            />
+          </Card>
 
-      <Card className="space-y-4 p-6">
-        <h2 className="font-display text-lg font-semibold text-on-surface">Learning Gaps</h2>
-        <EditableList
-          items={edit.learningGaps}
-          placeholder="e.g. Needs additional practice with multiplication facts 6-9"
-          onChange={(learningGaps) => setEdit((prev) => ({ ...prev, learningGaps }))}
-        />
-      </Card>
+          <Card className="space-y-4 p-6">
+            <h3 className="font-display text-base font-semibold text-on-surface">Priority Learning Gaps</h3>
+            <p className="text-xs text-on-surface-variant">Ranked highest priority first.</p>
+            <EditableList
+              items={edit.learningGaps}
+              placeholder="e.g. Needs additional practice with multiplication facts 6-9"
+              onChange={(learningGaps) => setEdit((prev) => ({ ...prev, learningGaps }))}
+            />
+          </Card>
 
-      <Card className="space-y-4 p-6">
-        <h2 className="font-display text-lg font-semibold text-on-surface">Priority Goal</h2>
-        <TextArea
-          id="priorityGoal"
-          rows={2}
-          value={edit.priorityGoal}
-          onChange={(e) => setEdit((prev) => ({ ...prev, priorityGoal: e.target.value }))}
-        />
-      </Card>
+          <Card className="space-y-2 p-6">
+            <h3 className="font-display text-base font-semibold text-on-surface">Why This Matters</h3>
+            <TextArea
+              id="whyItMatters"
+              rows={3}
+              value={edit.whyItMatters}
+              onChange={(e) => setEdit((prev) => ({ ...prev, whyItMatters: e.target.value }))}
+            />
+          </Card>
 
-      <Card className="space-y-4 p-6">
-        <h2 className="font-display text-lg font-semibold text-on-surface">Recommended Practice</h2>
-        <TextField
-          id="recommendedPractice"
-          value={edit.recommendedPractice}
-          onChange={(e) => setEdit((prev) => ({ ...prev, recommendedPractice: e.target.value }))}
-        />
-      </Card>
+          <Card className="space-y-2 p-6">
+            <h3 className="font-display text-base font-semibold text-on-surface">14-Day Goal</h3>
+            <TextArea
+              id="priorityGoal"
+              rows={2}
+              value={edit.priorityGoal}
+              onChange={(e) => setEdit((prev) => ({ ...prev, priorityGoal: e.target.value }))}
+            />
+          </Card>
+
+          <Card className="space-y-2 p-6">
+            <h3 className="font-display text-base font-semibold text-on-surface">Recommended Practice</h3>
+            <TextField
+              id="recommendedPractice"
+              value={edit.recommendedPractice}
+              onChange={(e) => setEdit((prev) => ({ ...prev, recommendedPractice: e.target.value }))}
+            />
+          </Card>
+        </div>
+      </div>
 
       <div>
         <h2 className="mb-3 font-display text-lg font-semibold text-on-surface">14-Day Learning Plan</h2>
@@ -256,17 +274,38 @@ export default function ReportView() {
                 <Badge tone="accent">{day.difficulty}</Badge>
               </div>
               <TextField
-                id={`focus-${day.dayNumber}`}
-                label="Focus skill"
-                value={day.focusSkill}
-                onChange={(e) => updateDay(index, "focusSkill", e.target.value)}
+                id={`title-${day.dayNumber}`}
+                label="Day title"
+                value={day.title}
+                onChange={(e) => updateDay(index, "title", e.target.value)}
               />
               <TextArea
-                id={`activity-${day.dayNumber}`}
-                label="Activity"
+                id={`objective-${day.dayNumber}`}
+                label="Learning objective"
                 rows={2}
-                value={day.activity}
-                onChange={(e) => updateDay(index, "activity", e.target.value)}
+                value={day.learningObjective}
+                onChange={(e) => updateDay(index, "learningObjective", e.target.value)}
+              />
+              <TextArea
+                id={`tutor-${day.dayNumber}`}
+                label="Tutor activity"
+                rows={3}
+                value={day.tutorActivity}
+                onChange={(e) => updateDay(index, "tutorActivity", e.target.value)}
+              />
+              <TextArea
+                id={`practice-${day.dayNumber}`}
+                label="Child practice"
+                rows={3}
+                value={day.childPractice}
+                onChange={(e) => updateDay(index, "childPractice", e.target.value)}
+              />
+              <TextArea
+                id={`tip-${day.dayNumber}`}
+                label="Teaching tip"
+                rows={2}
+                value={day.teachingTip}
+                onChange={(e) => updateDay(index, "teachingTip", e.target.value)}
               />
               <div className="grid gap-4 sm:grid-cols-2">
                 <TextField
@@ -290,9 +329,9 @@ export default function ReportView() {
               </div>
               <TextField
                 id={`success-${day.dayNumber}`}
-                label="Success criterion"
-                value={day.successCriterion}
-                onChange={(e) => updateDay(index, "successCriterion", e.target.value)}
+                label="Success check"
+                value={day.successCheck}
+                onChange={(e) => updateDay(index, "successCheck", e.target.value)}
               />
             </Card>
           ))}

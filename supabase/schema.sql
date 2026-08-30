@@ -53,25 +53,52 @@ create table if not exists public.learning_reports (
   child_grade text,
   child_subject text,
   strengths jsonb not null default '[]'::jsonb,
+  -- learning_gaps is ordered highest-priority-first (array order = rank);
+  -- no separate rank column needed.
   learning_gaps jsonb not null default '[]'::jsonb,
   priority_goal text,
+  -- Brief context on why the priority gaps matter at the child's current
+  -- level - shown in the report's "Learning Snapshot" alongside strengths,
+  -- gaps and the 14-day goal.
+  why_it_matters text,
   recommended_practice text,
   ai_provider text not null default 'mock',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
+-- learning_plan_days started with 5 content columns (focus_skill, activity,
+-- estimated_time, difficulty, success_criterion). The plan is now a full
+-- teaching pathway per day, not just an activity - `title`,
+-- `learning_objective`, and `child_practice` are new columns; `activity`
+-- and `success_criterion` are reused with a richer meaning (the tutor's
+-- teaching procedure, and the measurable check) rather than adding parallel
+-- columns for the same kind of content. See src/lib/api/learningPlanDay.js
+-- for the canonical app-level shape and its mapping to these columns.
 create table if not exists public.learning_plan_days (
   id uuid primary key default gen_random_uuid(),
   report_id uuid not null references public.learning_reports (id) on delete cascade,
   day_number integer not null check (day_number between 1 and 14),
+  title text,
   focus_skill text,
+  learning_objective text,
   activity text,
+  child_practice text,
+  teaching_tip text,
   estimated_time text,
   difficulty text,
   success_criterion text,
   unique (report_id, day_number)
 );
+
+-- Additive migration for a project whose tables already existed before the
+-- richer plan fields above were added - safe to re-run, and a no-op once
+-- the columns exist (matches this file's own "safe to re-run" convention).
+alter table public.learning_reports add column if not exists why_it_matters text;
+alter table public.learning_plan_days add column if not exists title text;
+alter table public.learning_plan_days add column if not exists learning_objective text;
+alter table public.learning_plan_days add column if not exists child_practice text;
+alter table public.learning_plan_days add column if not exists teaching_tip text;
 
 create table if not exists public.parent_share_links (
   id uuid primary key default gen_random_uuid(),
@@ -294,8 +321,12 @@ begin
   select coalesce(jsonb_agg(
     jsonb_build_object(
       'day_number', d.day_number,
+      'title', d.title,
       'focus_skill', d.focus_skill,
+      'learning_objective', d.learning_objective,
       'activity', d.activity,
+      'child_practice', d.child_practice,
+      'teaching_tip', d.teaching_tip,
       'estimated_time', d.estimated_time,
       'difficulty', d.difficulty,
       'success_criterion', d.success_criterion
@@ -313,6 +344,7 @@ begin
     'strengths', v_report.strengths,
     'learning_gaps', v_report.learning_gaps,
     'priority_goal', v_report.priority_goal,
+    'why_it_matters', v_report.why_it_matters,
     'recommended_practice', v_report.recommended_practice,
     'plan_days', v_days,
     'updated_at', v_report.updated_at

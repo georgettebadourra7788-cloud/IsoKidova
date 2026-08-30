@@ -80,6 +80,32 @@ export function extractScore(text) {
   return { correct, total, ratio: correct / total };
 }
 
+// Results are often a list of per-subskill scores ("Addition 9/10,
+// Subtraction 9/10, Multiplication 6/10, Word problems 5/10") - a blind
+// "first N/M in the string" grab picks whichever skill happens to be
+// mentioned first, not the one the plan is actually about. This finds the
+// score(s) attached to segments that share a significant word with the
+// given topic (e.g. "main idea" in the topic matching "Main idea 5/10" in
+// the results), and returns the lowest ratio among matches - the most
+// representative baseline for a gap that may span more than one sub-score.
+// Returns null (not a fallback score) when nothing matches, so callers can
+// chain multiple topic strings (e.g. a short label, then the full
+// weaknesses sentence) before falling back to a blind first-match.
+export function scoreForTopic(text, topic) {
+  if (!text || !topic) return null;
+  const words = topic.toLowerCase().match(/[a-z]{4,}/g) || [];
+  if (!words.length) return null;
+  const segments = text.split(/[,;\n]+/);
+  let best = null;
+  for (const segment of segments) {
+    const segmentLower = segment.toLowerCase();
+    if (!words.some((w) => segmentLower.includes(w))) continue;
+    const score = extractScore(segment);
+    if (score && (!best || score.ratio < best.ratio)) best = score;
+  }
+  return best;
+}
+
 export function lowerFirst(text) {
   if (!text) return text;
   return text.charAt(0).toLowerCase() + text.slice(1);

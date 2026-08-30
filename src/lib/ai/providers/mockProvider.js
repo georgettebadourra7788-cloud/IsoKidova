@@ -1,47 +1,26 @@
-import { splitPhrases, shortLabel, extractScore, lowerFirst } from "../textUtils.js";
+import { splitPhrases, shortLabel, scoreForTopic, extractScore, lowerFirst } from "../textUtils.js";
+import { buildPlanDays } from "../curriculum/index.js";
 
 // Mock AI provider for MVP 1: no API key, no network call, no cost. It
-// turns the tutor's own free-text assessment into a structured report using
-// templates, so the whole product workflow (form -> report -> edit -> share
-// -> parent view) can be built and tested end to end before a real AI
+// turns the tutor's own free-text assessment into a structured report -
+// strengths, ranked learning gaps, a priority goal, and a personalized
+// 14-day teaching plan - using hand-authored curricula for common subjects
+// (see ../curriculum/) and a concrete, phase-aware generic builder for
+// anything else, so the whole product workflow (form -> report -> edit ->
+// share -> parent view) can be built and tested end to end before a real AI
 // provider is wired in. See ../index.js for how a real provider would slot
 // in behind the same generate(input) contract.
 
-const ACTIVITY_TEMPLATES = [
-  (skill) => `Complete a short, focused practice set on ${lowerFirst(skill)}.`,
-  (skill) => `Work through a few guided examples of ${lowerFirst(skill)} together.`,
-  (skill) => `Play a quick learning game that reinforces ${lowerFirst(skill)}.`,
-  (skill) => `Review the last practice set on ${lowerFirst(skill)} and try a slightly harder one.`,
-  (skill) => `Apply ${lowerFirst(skill)} to one real-life, hands-on example.`,
-  (skill) => `Take a short, low-pressure check-in on ${lowerFirst(skill)} to see how it's going.`,
-];
-
-const REVIEW_ACTIVITY = (skill) => `Light review day: revisit ${lowerFirst(skill)} through a game or story, no pressure.`;
-
-function pickEstimatedTime(age, isReviewDay) {
-  if (isReviewDay) return "10-15 minutes";
-  if (age != null && age <= 8) return "15 minutes";
-  if (age != null && age >= 11) return "25 minutes";
-  return "20 minutes";
-}
-
-function pickDifficulty(dayNumber) {
-  if (dayNumber === 7 || dayNumber === 14) return "Review";
-  if (dayNumber <= 3) return "Easy";
-  if (dayNumber <= 9) return "Medium";
-  return "Challenging";
-}
-
-function buildSuccessCriterion(score) {
-  if (score) {
-    const target = Math.min(score.total, score.correct + 1);
-    return `Gets at least ${target} out of ${score.total} correct.`;
-  }
-  return "Completes the activity with growing confidence, asking for help only when needed.";
-}
-
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function buildWhyItMatters({ child, topic, subject }) {
+  const name = child.name || "This child";
+  const subjectLabel = subject ? lowerFirst(subject) : "this subject";
+  return `${name}'s upcoming work in ${subjectLabel} builds directly on ${lowerFirst(
+    topic,
+  )} - later topics assume this skill is already solid, so gaps here tend to compound rather than resolve on their own. Strengthening it now, while the material is still at a manageable size, is far easier than revisiting it later alongside new, harder content.`;
 }
 
 export async function generate({ child, assessment }) {
@@ -53,7 +32,6 @@ export async function generate({ child, assessment }) {
   const strengthPhrases = splitPhrases(assessment.strengths, 5);
   const weaknessPhrases = splitPhrases(assessment.weaknesses, 6);
   const topicPhrases = splitPhrases(assessment.topicsAssessed, 6);
-  const score = extractScore(assessment.results);
 
   const strengths =
     strengthPhrases.length > 0
@@ -63,19 +41,39 @@ export async function generate({ child, assessment }) {
           "Shows willingness to try new problems, even when unsure at first.",
         ];
 
-  // Weaknesses and assessed topics are both worth practicing, so combine
-  // them (deduping near-identical entries) rather than only falling back to
-  // topics when weaknesses is empty - this also keeps the 14-day plan from
-  // repeating a single focus skill when the tutor described just one.
+  // "Topics assessed" isn't the same as "weak" - a topic the results show
+  // as already strong (e.g. "Addition 9/10" alongside "Multiplication
+  // 6/10") shouldn't be listed as a learning gap just because it was part
+  // of the assessment. Weaknesses the tutor explicitly named are always
+  // trusted; assessed topics are only added when there's no evidence
+  // (an 80%+ per-topic score) that they're already mastered.
   const focusPool = [];
   const seen = new Set();
-  for (const phrase of [...weaknessPhrases, ...topicPhrases]) {
+  for (const phrase of weaknessPhrases) {
     const key = shortLabel(phrase).toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
     focusPool.push(phrase);
   }
+  for (const phrase of topicPhrases) {
+    const key = shortLabel(phrase).toLowerCase();
+    if (seen.has(key)) continue;
+    const topicScore = scoreForTopic(assessment.results, phrase);
+    if (topicScore && topicScore.ratio >= 0.8) continue; // already strong - not a gap
+    seen.add(key);
+    focusPool.push(phrase);
+  }
   if (focusPool.length === 0) focusPool.push("core skills");
+
+  const topPriority = shortLabel(focusPool[0]);
+  // Try the short topic label first, then the full weaknesses sentence
+  // (which often names specific sub-skills the label alone doesn't, e.g.
+  // "identifying the main idea" matching a "Main idea 5/10" result), before
+  // falling back to whichever score appears first in the results text.
+  const score =
+    scoreForTopic(assessment.results, topPriority) ||
+    scoreForTopic(assessment.results, assessment.weaknesses) ||
+    extractScore(assessment.results);
 
   const learningGaps = focusPool.map((phrase, i) => {
     if (i === 0 && score) {
@@ -85,8 +83,10 @@ export async function generate({ child, assessment }) {
   });
 
   const priorityGoal = `Build confidence and accuracy with ${lowerFirst(
-    shortLabel(focusPool[0]),
+    topPriority,
   )} through short, consistent daily practice over the next 14 days.`;
+
+  const whyItMatters = buildWhyItMatters({ child, topic: topPriority, subject: child.subject });
 
   const recommendedPractice =
     child.age != null && child.age <= 8
@@ -95,30 +95,9 @@ export async function generate({ child, assessment }) {
         ? "20-25 minutes per day, broken into focused sessions."
         : "15-20 minutes per day, ideally at the same time each day.";
 
-  const planDays = Array.from({ length: 14 }, (_, i) => {
-    const dayNumber = i + 1;
-    // The full phrase (e.g. "multiplication tables, especially 6-9") is
-    // right for a Learning Gaps bullet, but reads better trimmed down when
-    // it's embedded mid-sentence in a day's focus skill / activity text.
-    const skill = shortLabel(focusPool[i % focusPool.length]);
-    const isReviewDay = dayNumber === 7 || dayNumber === 14;
-    const activity = isReviewDay
-      ? REVIEW_ACTIVITY(skill)
-      : ACTIVITY_TEMPLATES[i % ACTIVITY_TEMPLATES.length](skill);
+  const planDays = buildPlanDays({ child, assessment, score, focusPool });
 
-    return {
-      dayNumber,
-      focusSkill: skill,
-      activity,
-      estimatedTime: pickEstimatedTime(child.age, isReviewDay),
-      difficulty: pickDifficulty(dayNumber),
-      successCriterion: isReviewDay
-        ? "Takes part willingly, no formal scoring today."
-        : buildSuccessCriterion(score),
-    };
-  });
-
-  return { strengths, learningGaps, priorityGoal, recommendedPractice, planDays };
+  return { strengths, learningGaps, priorityGoal, whyItMatters, recommendedPractice, planDays };
 }
 
 export const meta = {
