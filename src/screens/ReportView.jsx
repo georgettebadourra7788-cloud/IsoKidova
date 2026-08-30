@@ -13,7 +13,8 @@ import MaterialIcon from "../components/icons/MaterialIcon.jsx";
 import { isSupabaseConfigured } from "../lib/supabaseClient.js";
 import { getReport, updateReportFields, upsertPlanDays } from "../lib/api/reports.js";
 import { getActiveShareLink, createShareLink } from "../lib/api/shareLinks.js";
-import { AI_DISCLAIMER } from "../lib/ai/index.js";
+import { getAssessment } from "../lib/api/assessments.js";
+import { generateLearningReport, AI_DISCLAIMER } from "../lib/ai/index.js";
 
 const DIFFICULTIES = ["Easy", "Medium", "Challenging", "Review"];
 
@@ -42,6 +43,7 @@ export default function ReportView() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
   const [copied, setCopied] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
@@ -124,6 +126,52 @@ export default function ReportView() {
       setError(err.message);
     } finally {
       setSharing(false);
+    }
+  };
+
+  const handleRegenerate = async () => {
+    if (!report.assessment_id) {
+      setError("This report has no saved assessment to regenerate from - create a new assessment instead.");
+      return;
+    }
+    if (!window.confirm("Regenerate this report from the original assessment? Any unsaved edits on this page will be replaced.")) {
+      return;
+    }
+    setError("");
+    setRegenerating(true);
+    try {
+      const { data: assessmentRow, error: assessmentError } = await getAssessment(report.assessment_id);
+      if (assessmentError || !assessmentRow) throw new Error("We couldn't find the original assessment for this report.");
+
+      const child = {
+        name: report.child_name,
+        age: report.child_age,
+        grade: report.child_grade,
+        subject: report.child_subject,
+      };
+      const assessment = {
+        strengths: assessmentRow.strengths,
+        weaknesses: assessmentRow.weaknesses,
+        topicsAssessed: assessmentRow.topics_assessed,
+        results: assessmentRow.results,
+        observations: assessmentRow.observations,
+        additionalNotes: assessmentRow.additional_notes,
+      };
+
+      const { data: aiResult, error: aiError } = await generateLearningReport({ child, assessment });
+      if (aiError || !aiResult) throw new Error("The AI couldn't generate a report right now. Please try again.");
+
+      setEdit({
+        strengths: aiResult.strengths,
+        learningGaps: aiResult.learningGaps,
+        priorityGoal: aiResult.priorityGoal,
+        recommendedPractice: aiResult.recommendedPractice,
+        planDays: aiResult.planDays,
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRegenerating(false);
     }
   };
 
@@ -262,6 +310,9 @@ export default function ReportView() {
         </Button>
         <Button onClick={handleShare} loading={sharing} variant="accent">
           Share with Parent
+        </Button>
+        <Button onClick={handleRegenerate} loading={regenerating} variant="ghost" size="sm" title="Re-run the AI using the same saved assessment - no retyping">
+          Regenerate
         </Button>
         {shareUrl && (
           <div className="flex w-full items-center gap-2 sm:w-auto sm:flex-1">

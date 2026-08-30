@@ -20,6 +20,10 @@ export async function createAssessment(tutorId, childId, assessment) {
     .single();
 }
 
+export async function getAssessment(assessmentId) {
+  return supabase.from("assessments").select(ASSESSMENT_COLUMNS).eq("id", assessmentId).maybeSingle();
+}
+
 export async function getLatestAssessmentForChild(childId) {
   return supabase
     .from("assessments")
