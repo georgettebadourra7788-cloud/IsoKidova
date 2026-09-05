@@ -1,12 +1,20 @@
-import { estimatedTimeFor, phaseFor, firstName } from "./shared.js";
+import { estimatedTimeFor, phaseFor, firstName } from "../shared.js";
 
 // Hand-authored 14-day reading comprehension curriculum: literal
 // comprehension and main idea first, then inference/cause-effect/sequencing,
 // a checkpoint, applied reading across text types, then independent
 // summarizing and a final check against baseline.
 
+// Self-describing metadata (see ../index.js) - what makes this curriculum
+// discoverable and organizable by subject as more are added.
+export const subject = "Reading";
+export const topic = "Reading comprehension";
+
+// "Vocabulary" alone routes to english/vocabulary.js instead - this stays
+// scoped to comprehension-specific language so the two don't shadow each
+// other in the dispatcher.
 export function matches(text) {
-  return /(reading comprehension|comprehension|main idea|inference|vocabulary in context)/i.test(text || "");
+  return /(reading comprehension|comprehension|main idea|inference)/i.test(text || "");
 }
 
 export function build({ child, score }) {

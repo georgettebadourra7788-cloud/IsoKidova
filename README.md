@@ -52,20 +52,52 @@ below). Every table is scoped to the owning tutor via Row Level Security. Parent
 single `get_shared_report(token)` Postgres function (SECURITY DEFINER) that returns only child-facing fields - a
 parent can never see tutor account info, and there's no RLS policy that lets `anon` query the report tables directly.
 
-## AI provider
+## AI provider & curriculum engine
 
 MVP 1 ships with `src/lib/ai/providers/mockProvider.js`: it takes the tutor's own free-text assessment (strengths,
-weaknesses, topics assessed, results, observations) and turns it into a structured report and 14-day plan using
-templates - no network call, no API key, no cost. This is what makes the whole workflow testable today.
+weaknesses, topics assessed, results, observations) and turns it into a structured report - ranked learning gaps, a
+"why this matters" explanation, a 14-day goal, and a personalized 14-day plan - with no network call, no API key, no
+cost. This is what makes the whole workflow testable today.
+
+The 14-day plan itself is built by `src/lib/ai/curriculum/`, organized by subject:
+
+- `mathematics/multiplicationTables.js`, `mathematics/fractions.js`
+- `reading/comprehension.js`
+- `english/vocabulary.js`
+- `science/scientificMethod.js`
+- `genericPhaseBuilder.js` - a concrete, phase-aware fallback for any weakness that doesn't match one of the above (never a vague "practice the skill")
+
+`curriculum/index.js` picks a curriculum by matching the tutor's weaknesses/topics-assessed text; every module follows
+the same 14-day progression (foundation days 1-3, guided practice 4-6, checkpoint day 7, application 8-10,
+independent/challenge 11-13, final review day 14) and the same day shape (title, learning objective, tutor activity,
+child practice, teaching tip, success check, estimated time, difficulty). To add another subject: create a new module
+under `curriculum/<subject>/` exporting `subject`, `topic`, `matches(text)`, and `build({child, assessment, score,
+focusPool})`, then register it in `curriculum/index.js` - nothing else needs to change.
+
+Every generated report is checked by `src/lib/ai/validate.js` before it's trusted (`generateLearningReport()` in
+`src/lib/ai/index.js` rejects anything with an empty required field or fewer than 14 days) - a safety net that matters
+more once a real, occasionally-imperfect model is generating content.
 
 To add a real AI provider later:
 
-1. Create `src/lib/ai/providers/yourProvider.js` exporting the same `generate({ child, assessment })` contract as
-   `mockProvider.js` (see that file for the exact shape of strengths/learningGaps/priorityGoal/recommendedPractice/planDays).
-2. Register it in `PROVIDERS` in `src/lib/ai/index.js` and set `VITE_AI_PROVIDER` to its id.
+1. Create `src/lib/ai/providers/yourProvider.js` implementing the `AIProvider` contract documented via JSDoc at the
+   top of `src/lib/ai/index.js` - the same `generate({ child, assessment })` shape as `mockProvider.js`.
+2. Register it in `PROVIDERS` in `src/lib/ai/index.js` and set `VITE_AI_PROVIDER` to its id. The validation gate
+   applies automatically to any provider's output.
 3. **If the provider needs a secret API key**, do not call the AI API directly from the browser. Add a Vercel
    serverless function under `api/` (the same pattern as this project would use for any other server-only secret)
    that holds the key and does the generation, and have the provider's `generate()` call that endpoint instead.
+
+## Tests
+
+```bash
+npm test    # vitest run - src/lib/ai/curriculum.test.js
+```
+
+Deterministic tests (the mock provider has no randomness; its artificial UX delay is skipped under `vitest`) covering:
+grade-3 multiplication, reading comprehension, fractions, English vocabulary, science, two children with different
+weaknesses producing genuinely different plans, and age-appropriate session-length differences - plus an end-to-end
+check that every hand-authored curriculum and the generic fallback pass `validateReport()`.
 
 ## Run locally
 
@@ -123,7 +155,9 @@ See `supabase/schema.sql` for the full, commented definition. Summary:
 - `assessments` - free-text tutor input per child (strengths, weaknesses, topics assessed, results, observations, notes).
 - `learning_reports` - the generated/edited report; captures a snapshot of the child's name/age/grade/subject at
   generation time so a share link stays stable and self-contained.
-- `learning_plan_days` - 14 rows per report (day, focus skill, activity, estimated time, difficulty, success criterion).
+- `learning_plan_days` - 14 rows per report: day number, title, focus skill, learning objective, activity (the
+  tutor's teaching procedure), child practice, teaching tip, estimated time, difficulty, success criterion (the
+  measurable check) - see `src/lib/api/learningPlanDay.js` for the exact column-name mapping.
 - `parent_share_links` - `report_id`, unpredictable token (256-bit, generated client-side via Web Crypto), revocable.
 - `progress` - reserved for future progress tracking (see below); not used by MVP 1's UI.
 

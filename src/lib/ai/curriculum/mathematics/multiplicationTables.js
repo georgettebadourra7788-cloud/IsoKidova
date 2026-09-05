@@ -1,4 +1,4 @@
-import { estimatedTimeFor, phaseFor, firstName } from "./shared.js";
+import { estimatedTimeFor, phaseFor, firstName } from "../shared.js";
 
 // Hand-authored 14-day multiplication curriculum: equal-groups foundation,
 // then the two easiest fact families (2/5/10, then 3/4), then the facts the
@@ -20,6 +20,11 @@ function detectWeakFacts(text) {
   const nums = [...found].filter((n) => n >= 6).sort((a, b) => a - b);
   return nums.length >= 2 ? [...nums, ...fallback].slice(0, 4) : fallback;
 }
+
+// Self-describing metadata (see ../index.js) - what makes this curriculum
+// discoverable and organizable by subject as more are added.
+export const subject = "Mathematics";
+export const topic = "Multiplication tables";
 
 export function matches(text) {
   return /multipli/i.test(text || "");

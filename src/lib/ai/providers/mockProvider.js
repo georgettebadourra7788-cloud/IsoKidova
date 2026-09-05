@@ -25,9 +25,10 @@ function buildWhyItMatters({ child, topic, subject }) {
 
 export async function generate({ child, assessment }) {
   // Small artificial delay so the "Generate Learning Plan" loading state
-  // (spec section 7) is meaningful to test, the same way a real API call
-  // would take a moment.
-  await delay(900);
+  // (spec section 7) is meaningful to test in the browser, the same way a
+  // real API call would take a moment. Skipped under the test runner so the
+  // suite stays fast - this is purely a UX pacing delay, not behavior.
+  if (import.meta.env?.MODE !== "test") await delay(900);
 
   const strengthPhrases = splitPhrases(assessment.strengths, 5);
   const weaknessPhrases = splitPhrases(assessment.weaknesses, 6);
