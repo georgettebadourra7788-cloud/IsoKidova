@@ -98,6 +98,21 @@ export async function generate({ child, assessment }) {
 
   const planDays = buildPlanDays({ child, assessment, score, focusPool });
 
+  // TEMPORARY DEBUG LOGGING - remove once the pipeline is confirmed.
+  console.log("[DEBUG PROVIDER] snapshot.strengths =", strengths);
+  console.log("[DEBUG PROVIDER] snapshot.learningGaps =", learningGaps);
+  console.log("[DEBUG PROVIDER] snapshot.priorityGoal =", priorityGoal);
+  console.log("[DEBUG PROVIDER] snapshot.whyItMatters =", whyItMatters);
+  console.log("[DEBUG PROVIDER] snapshot.recommendedPractice =", recommendedPractice);
+  console.log("[DEBUG PROVIDER] planDays.length =", planDays.length);
+  console.log("[DEBUG PROVIDER] day1.title =", planDays[0]?.title);
+  console.log("[DEBUG PROVIDER] day1.learningObjective =", planDays[0]?.learningObjective);
+  console.log("[DEBUG PROVIDER] day1.tutorActivity =", planDays[0]?.tutorActivity);
+  console.log("[DEBUG PROVIDER] day1.childPractice =", planDays[0]?.childPractice);
+  console.log("[DEBUG PROVIDER] day1.teachingTip =", planDays[0]?.teachingTip);
+  console.log("[DEBUG PROVIDER] day1.successCheck =", planDays[0]?.successCheck);
+  console.log("[DEBUG PROVIDER] day1.estimatedTime/difficulty =", planDays[0]?.estimatedTime, planDays[0]?.difficulty);
+
   return { strengths, learningGaps, priorityGoal, whyItMatters, recommendedPractice, planDays };
 }
 

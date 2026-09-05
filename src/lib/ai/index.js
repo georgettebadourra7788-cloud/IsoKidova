@@ -74,6 +74,10 @@ export async function generateLearningReport({ child, assessment }) {
         error: "The learning plan couldn't be generated completely. Please try again.",
       };
     }
+    // TEMPORARY DEBUG LOGGING - remove once the pipeline is confirmed.
+    console.log("[DEBUG VALIDATED] valid =", valid, "| strengths.length =", result.strengths.length);
+    console.log("[DEBUG VALIDATED] day1.title =", result.planDays[0]?.title);
+    console.log("[DEBUG VALIDATED] day1.learningObjective =", result.planDays[0]?.learningObjective);
     return { data: result, providerId, error: null };
   } catch (err) {
     return {
