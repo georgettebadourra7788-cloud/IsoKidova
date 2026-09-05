@@ -15,6 +15,10 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function significantWords(phrase) {
+  return new Set(phrase.toLowerCase().match(/[a-z]{4,}/g) || []);
+}
+
 function buildWhyItMatters({ child, topic, subject }) {
   const name = child.name || "This child";
   const subjectLabel = subject ? lowerFirst(subject) : "this subject";
@@ -45,24 +49,28 @@ export async function generate({ child, assessment }) {
   // "Topics assessed" isn't the same as "weak" - a topic the results show
   // as already strong (e.g. "Addition 9/10" alongside "Multiplication
   // 6/10") shouldn't be listed as a learning gap just because it was part
-  // of the assessment. Weaknesses the tutor explicitly named are always
-  // trusted; assessed topics are only added when there's no evidence
-  // (an 80%+ per-topic score) that they're already mastered.
+  // of the assessment. Assessed topics (the structured, per-topic list) are
+  // built first, since each one carries its own concrete score; a tutor's
+  // free-text weaknesses sentence is added afterward only for whatever it
+  // names that isn't already covered by a specific scored topic - a
+  // sentence like "Multiplication tables, ... and multiplication word
+  // problems" is fully redundant once "Multiplication" and "Word problems"
+  // already appear as their own scored entries, so it's dropped rather than
+  // producing a vague, unscored duplicate of the same gap.
   const focusPool = [];
-  const seen = new Set();
-  for (const phrase of weaknessPhrases) {
-    const key = shortLabel(phrase).toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    focusPool.push(phrase);
-  }
+  const claimedWords = new Set();
   for (const phrase of topicPhrases) {
-    const key = shortLabel(phrase).toLowerCase();
-    if (seen.has(key)) continue;
     const topicScore = scoreForTopic(assessment.results, phrase);
     if (topicScore && topicScore.ratio >= 0.8) continue; // already strong - not a gap
-    seen.add(key);
     focusPool.push(phrase);
+    for (const w of significantWords(phrase)) claimedWords.add(w);
+  }
+  for (const phrase of weaknessPhrases) {
+    const words = [...significantWords(phrase)];
+    const alreadyCovered = words.length > 0 && words.some((w) => claimedWords.has(w));
+    if (alreadyCovered) continue;
+    focusPool.push(phrase);
+    for (const w of words) claimedWords.add(w);
   }
   if (focusPool.length === 0) focusPool.push("core skills");
 
@@ -70,15 +78,34 @@ export async function generate({ child, assessment }) {
   // Try the short topic label first, then the full weaknesses sentence
   // (which often names specific sub-skills the label alone doesn't, e.g.
   // "identifying the main idea" matching a "Main idea 5/10" result), before
-  // falling back to whichever score appears first in the results text.
+  // falling back to whichever score appears first in the results text. This
+  // is the plan's day-1/day-14 baseline, tied to whichever topic the
+  // curriculum actually teaches.
   const score =
     scoreForTopic(assessment.results, topPriority) ||
     scoreForTopic(assessment.results, assessment.weaknesses) ||
     extractScore(assessment.results);
 
-  const learningGaps = focusPool.map((phrase, i) => {
-    if (i === 0 && score) {
-      return `Needs additional practice with ${lowerFirst(phrase)} (currently around ${score.correct} out of ${score.total} correct).`;
+  // Each gap gets its own score looked up against its own topic - not just
+  // the top item - so "Priority Learning Gaps" reflects the child's actual
+  // per-topic results throughout the list, not only on the first line. The
+  // displayed order is then ranked worst-first (lowest ratio = biggest gap =
+  // highest priority); gaps with no resolvable score keep their original
+  // order after those, since a tutor's explicit note is still a real gap
+  // even without a number attached.
+  const scoredPool = focusPool.map((phrase) => ({
+    phrase,
+    gapScore: scoreForTopic(assessment.results, shortLabel(phrase)) || scoreForTopic(assessment.results, phrase),
+  }));
+  const ranked = [
+    ...scoredPool.filter((entry) => entry.gapScore).sort((a, b) => a.gapScore.ratio - b.gapScore.ratio),
+    ...scoredPool.filter((entry) => !entry.gapScore),
+  ];
+  const rankedFocusPool = ranked.map((entry) => entry.phrase);
+
+  const learningGaps = ranked.map(({ phrase, gapScore }) => {
+    if (gapScore) {
+      return `Needs additional practice with ${lowerFirst(phrase)} (currently around ${gapScore.correct} out of ${gapScore.total} correct).`;
     }
     return `Needs additional practice with ${lowerFirst(phrase)}.`;
   });
@@ -96,22 +123,7 @@ export async function generate({ child, assessment }) {
         ? "20-25 minutes per day, broken into focused sessions."
         : "15-20 minutes per day, ideally at the same time each day.";
 
-  const planDays = buildPlanDays({ child, assessment, score, focusPool });
-
-  // TEMPORARY DEBUG LOGGING - remove once the pipeline is confirmed.
-  console.log("[DEBUG PROVIDER] snapshot.strengths =", strengths);
-  console.log("[DEBUG PROVIDER] snapshot.learningGaps =", learningGaps);
-  console.log("[DEBUG PROVIDER] snapshot.priorityGoal =", priorityGoal);
-  console.log("[DEBUG PROVIDER] snapshot.whyItMatters =", whyItMatters);
-  console.log("[DEBUG PROVIDER] snapshot.recommendedPractice =", recommendedPractice);
-  console.log("[DEBUG PROVIDER] planDays.length =", planDays.length);
-  console.log("[DEBUG PROVIDER] day1.title =", planDays[0]?.title);
-  console.log("[DEBUG PROVIDER] day1.learningObjective =", planDays[0]?.learningObjective);
-  console.log("[DEBUG PROVIDER] day1.tutorActivity =", planDays[0]?.tutorActivity);
-  console.log("[DEBUG PROVIDER] day1.childPractice =", planDays[0]?.childPractice);
-  console.log("[DEBUG PROVIDER] day1.teachingTip =", planDays[0]?.teachingTip);
-  console.log("[DEBUG PROVIDER] day1.successCheck =", planDays[0]?.successCheck);
-  console.log("[DEBUG PROVIDER] day1.estimatedTime/difficulty =", planDays[0]?.estimatedTime, planDays[0]?.difficulty);
+  const planDays = buildPlanDays({ child, assessment, score, focusPool: rankedFocusPool });
 
   return { strengths, learningGaps, priorityGoal, whyItMatters, recommendedPractice, planDays };
 }

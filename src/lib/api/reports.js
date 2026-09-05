@@ -35,13 +35,10 @@ export async function createReport(tutorId, { child, assessmentId, aiProvider, r
     .single();
 
   if (reportError) {
-    console.log("[DEBUG DB WRITE] learning_reports insert FAILED:", reportError);
     return { data: null, error: reportError };
   }
-  console.log("[DEBUG DB WRITE] learning_reports row written, id =", reportRow.id, "| why_it_matters =", reportRow.why_it_matters);
 
   const rows = planDays.map((day) => toDbRow(reportRow.id, day));
-  console.log("[DEBUG DB WRITE] day1 row about to be inserted =", rows[0]);
 
   const { data: dayRows, error: daysError } = await supabase
     .from("learning_plan_days")
@@ -50,10 +47,8 @@ export async function createReport(tutorId, { child, assessmentId, aiProvider, r
     .order("day_number");
 
   if (daysError) {
-    console.log("[DEBUG DB WRITE] learning_plan_days insert FAILED:", daysError);
     return { data: null, error: daysError };
   }
-  console.log("[DEBUG DB WRITE] day1 row Supabase returned =", dayRows?.[0]);
 
   return { data: { ...reportRow, learning_plan_days: dayRows }, error: null };
 }
@@ -67,19 +62,13 @@ export async function getReport(reportId) {
     .maybeSingle();
 
   if (error || !data) {
-    console.log("[DEBUG DB READ] getReport() FAILED or empty:", { error, data });
     return { data, error };
   }
-  console.log("[DEBUG DB READ] report.strengths (raw) =", data.strengths);
-  console.log("[DEBUG DB READ] report.learning_gaps (raw) =", data.learning_gaps);
-  console.log("[DEBUG DB READ] report.why_it_matters (raw) =", data.why_it_matters);
-  console.log("[DEBUG DB READ] day1 RAW row (before fromDbRow) =", data.learning_plan_days?.[0]);
 
   // learning_plan_days comes back as raw DB rows (snake_case); convert once
   // here so every caller works with the same canonical LearningPlanDay shape
   // instead of each screen re-inventing its own snake_case -> camelCase map.
   const converted = { ...data, learning_plan_days: (data.learning_plan_days || []).map(fromDbRow) };
-  console.log("[DEBUG DB READ] day1 AFTER fromDbRow =", converted.learning_plan_days[0]);
   return { data: converted, error: null };
 }
 

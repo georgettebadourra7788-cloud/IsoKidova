@@ -61,17 +61,7 @@ export default function ReportView() {
         setError("We couldn't find that report.");
       } else {
         setReport(data);
-        const nextEdit = toEditState(data);
-        // TEMPORARY DEBUG LOGGING - remove once the pipeline is confirmed.
-        console.log("[DEBUG UI PROPS] edit.strengths =", nextEdit.strengths);
-        console.log("[DEBUG UI PROPS] edit.learningGaps =", nextEdit.learningGaps);
-        console.log("[DEBUG UI PROPS] edit.whyItMatters =", nextEdit.whyItMatters);
-        console.log("[DEBUG UI PROPS] edit.priorityGoal =", nextEdit.priorityGoal);
-        console.log("[DEBUG UI PROPS] edit.recommendedPractice =", nextEdit.recommendedPractice);
-        console.log("[DEBUG UI PROPS] edit.planDays[0] (Day 1 card props) =", nextEdit.planDays[0]);
-        console.log("[DEBUG UI PROPS] edit.planDays[6] (Day 7 card props) =", nextEdit.planDays[6]);
-        console.log("[DEBUG UI PROPS] edit.planDays[13] (Day 14 card props) =", nextEdit.planDays[13]);
-        setEdit(nextEdit);
+        setEdit(toEditState(data));
         const { data: link } = await getActiveShareLink(reportId);
         if (link) setShareUrl(`${window.location.origin}/share/${link.token}`);
       }

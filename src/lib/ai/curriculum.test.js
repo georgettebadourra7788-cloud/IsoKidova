@@ -179,6 +179,59 @@ describe("case 6: two children with different weaknesses produce different plans
   });
 });
 
+describe("Priority Learning Gaps are populated, scored, and ranked from real assessment data", () => {
+  it("Emma, Liam, and Noor each get a non-empty, distinct, correctly-scored gap list", async () => {
+    const emma = await generateMock(EMMA);
+    const liam = await generateMock(LIAM);
+    const noor = await generateMock(NOOR);
+
+    for (const report of [emma, liam, noor]) {
+      expect(report.learningGaps.length).toBeGreaterThan(0);
+      report.learningGaps.forEach((gap) => expect(gap.length).toBeGreaterThan(10));
+    }
+
+    // Never hardcoded to Emma's values - each child's gaps name their own
+    // specific weak skills, not just the subject, with their own scores.
+    expect(emma.learningGaps.join(" ")).toMatch(/multiplication.*6 out of 10|word problems.*5 out of 10/i);
+    expect(liam.learningGaps.join(" ")).toMatch(/main idea.*5 out of 10/i);
+    expect(noor.learningGaps.join(" ")).toMatch(/fractions.*4 out of 10/i);
+
+    expect(emma.learningGaps).not.toEqual(liam.learningGaps);
+    expect(liam.learningGaps).not.toEqual(noor.learningGaps);
+    expect(emma.learningGaps).not.toEqual(noor.learningGaps);
+  });
+
+  it("ranks Emma's gaps worst-score-first: Word problems (5/10) before Multiplication (6/10)", async () => {
+    const emma = await generateMock(EMMA);
+    const wordProblemsIndex = emma.learningGaps.findIndex((g) => /word problems/i.test(g));
+    const multiplicationIndex = emma.learningGaps.findIndex((g) => /multiplication/i.test(g));
+    expect(wordProblemsIndex).toBeGreaterThanOrEqual(0);
+    expect(multiplicationIndex).toBeGreaterThanOrEqual(0);
+    expect(wordProblemsIndex).toBeLessThan(multiplicationIndex);
+  });
+
+  it("ranks Noor's gaps worst-score-first: Fractions (4/10), Decimals (5/10), Percentages (7/10)", async () => {
+    const noor = await generateMock(NOOR);
+    const fractionsIndex = noor.learningGaps.findIndex((g) => /fractions/i.test(g));
+    const decimalsIndex = noor.learningGaps.findIndex((g) => /decimals/i.test(g));
+    const percentagesIndex = noor.learningGaps.findIndex((g) => /percentages/i.test(g));
+    expect(fractionsIndex).toBeGreaterThanOrEqual(0);
+    expect(decimalsIndex).toBeGreaterThanOrEqual(0);
+    expect(percentagesIndex).toBeGreaterThanOrEqual(0);
+    expect(fractionsIndex).toBeLessThan(decimalsIndex);
+    expect(decimalsIndex).toBeLessThan(percentagesIndex);
+  });
+
+  it("does not produce a vague duplicate gap when a weakness sentence just restates already-scored topics", async () => {
+    // Emma's weaknesses sentence ("Multiplication tables, ... and
+    // multiplication word problems") names the same two skills that
+    // topicsAssessed + results already score individually - it should not
+    // also appear as its own separate, unscored, redundant gap line.
+    const emma = await generateMock(EMMA);
+    expect(emma.learningGaps).toHaveLength(2);
+  });
+});
+
 describe("case 7: age-appropriate differences", () => {
   it("a younger child gets shorter session times than an older child for the same weakness", async () => {
     const young = { child: { ...EMMA.child, age: 7 }, assessment: EMMA.assessment };
